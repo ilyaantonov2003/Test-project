@@ -252,5 +252,124 @@
       window.location.href = 'mailto:ilyaantonov06022003@gmail.com?subject=Сообщение с визитки&body=' + encodeURIComponent(text);
     });
   </script>
+
+  <!-- Чат-бот: Личный помощник Илья Антонов (cursor-ai-chatbot) -->
+  <script>
+    window.aiChatConfig = {
+      consultantName: "Илья Антонов",
+      welcomeMessage: "Здравствуйте! Я Личный помощник Илья Антонов. Могу рассказать об услугах, ценах и как связаться со мной. Спрашивайте: услуги риелтора, цены, контакты.",
+      apiUrl: "/api/chat",
+      primaryColor: "#dc2626",
+      chatTitle: "Личный помощник Илья Антонов"
+    };
+  </script>
+  <style>
+    #ai-chat-widget { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    #ai-chat-toggle { width: 60px; height: 60px; border-radius: 50%; background: var(--ai-chat-color, #dc2626); border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+    #ai-chat-toggle:hover { transform: scale(1.05); }
+    #ai-chat-toggle svg { width: 28px; height: 28px; fill: white; }
+    #ai-chat-window { position: absolute; bottom: 80px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 500px; background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; }
+    #ai-chat-window.open { display: flex; }
+    .ai-chat-header { background: var(--ai-chat-color, #dc2626); color: white; padding: 16px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    .ai-chat-close { background: none; border: none; color: white; cursor: pointer; font-size: 20px; }
+    .ai-chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .ai-message { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
+    .ai-message.user { background: var(--ai-chat-color, #dc2626); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .ai-message.assistant { background: #f1f5f9; color: #1e293b; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .ai-message.error { background: #fee2e2; color: #dc2626; font-size: 12px; }
+    .ai-chat-input { padding: 16px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; }
+    .ai-chat-input input { flex: 1; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 24px; outline: none; font-size: 14px; }
+    .ai-chat-input input:focus { border-color: var(--ai-chat-color, #dc2626); }
+    .ai-chat-input button { width: 44px; height: 44px; border-radius: 50%; background: var(--ai-chat-color, #dc2626); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .ai-chat-input button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .ai-chat-input button svg { width: 20px; height: 20px; fill: white; }
+    .ai-typing { display: flex; gap: 4px; padding: 12px 16px; background: #f1f5f9; border-radius: 16px; border-bottom-left-radius: 4px; width: fit-content; }
+    .ai-typing span { width: 8px; height: 8px; background: #94a3b8; border-radius: 50%; animation: ai-typing 1.4s infinite; }
+    .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes ai-typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+  </style>
+  <div id="ai-chat-widget" style="--ai-chat-color: #dc2626">
+    <button type="button" id="ai-chat-toggle" aria-label="Открыть чат" onclick="toggleChat()">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+    </button>
+    <div id="ai-chat-window">
+      <div class="ai-chat-header">
+        <span id="chat-title">Личный помощник Илья Антонов</span>
+        <button type="button" class="ai-chat-close" aria-label="Закрыть" onclick="closeChat()">×</button>
+      </div>
+      <div class="ai-chat-messages" id="chat-messages"></div>
+      <div class="ai-chat-input">
+        <input type="text" id="user-message" placeholder="Напишите сообщение..." onkeypress="handleKeyPress(event)">
+        <button type="button" id="send-btn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var config = window.aiChatConfig || {};
+      if (config.chatTitle) {
+        var t = document.getElementById('chat-title');
+        if (t) t.textContent = config.chatTitle;
+      }
+      window.toggleChat = function() {
+        var win = document.getElementById('ai-chat-window');
+        if (!win) return;
+        win.classList.toggle('open');
+        if (win.classList.contains('open') && document.getElementById('chat-messages').children.length === 0) {
+          addMessage(config.welcomeMessage || 'Здравствуйте! Чем могу помочь?', 'assistant');
+        }
+      };
+      window.closeChat = function() { var w = document.getElementById('ai-chat-window'); if (w) w.classList.remove('open'); };
+      window.handleKeyPress = function(e) { if (e.key === 'Enter') sendMessage(); };
+      window.sendMessage = async function() {
+        var input = document.getElementById('user-message');
+        var message = input && input.value ? input.value.trim() : '';
+        var sendBtn = document.getElementById('send-btn');
+        if (!message) return;
+        addMessage(message, 'user');
+        input.value = '';
+        if (sendBtn) sendBtn.disabled = true;
+        var typingId = addTyping();
+        try {
+          var response = await fetch(config.apiUrl || '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message }) });
+          removeTyping(typingId);
+          if (!response.ok) {
+            var err = await response.json();
+            throw new Error(err.error || 'Ошибка запроса');
+          }
+          var data = await response.json();
+          addMessage(data.response, 'assistant');
+        } catch (err) {
+          removeTyping(typingId);
+          addMessage('Извините, произошла ошибка: ' + err.message, 'error');
+        }
+        if (sendBtn) sendBtn.disabled = false;
+      };
+      function addMessage(text, role) {
+        var container = document.getElementById('chat-messages');
+        if (!container) return;
+        var div = document.createElement('div');
+        div.className = 'ai-message ' + role;
+        div.textContent = text;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+      }
+      function addTyping() {
+        var container = document.getElementById('chat-messages');
+        if (!container) return '';
+        var div = document.createElement('div');
+        div.className = 'ai-typing';
+        div.innerHTML = '<span></span><span></span><span></span>';
+        div.id = 'typing-' + Date.now();
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+        return div.id;
+      }
+      function removeTyping(id) { var el = document.getElementById(id); if (el) el.remove(); }
+    })();
+  </script>
 </body>
 </html>
