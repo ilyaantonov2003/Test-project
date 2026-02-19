@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(git)",
+      "Shell(npm)",
+      "Shell(npx)",
+      "Shell(vercel)"
+    ],
+    "deny": []
+  }
+}
