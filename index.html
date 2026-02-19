@@ -8,12 +8,12 @@
     :root {
       --bg: #0c1214;
       --bg-soft: #131c20;
-      --accent: #0d9488;
-      --accent-light: #2dd4bf;
-      --accent-glow: rgba(45, 212, 191, 0.25);
+      --accent: #39ff14;
+      --accent-light: #7fff00;
+      --accent-glow: rgba(57, 255, 20, 0.3);
       --text: #e8f4f2;
-      --text-muted: #94b8b2;
-      --border: rgba(45, 212, 191, 0.25);
+      --text-muted: #a8c4a0;
+      --border: rgba(57, 255, 20, 0.4);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -21,7 +21,7 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(13, 148, 136, 0.22) 0%, transparent 50%),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(57, 255, 20, 0.15) 0%, transparent 50%),
         linear-gradient(180deg, #0c1214 0%, #0f181a 40%, #0c1214 100%);
       background-attachment: fixed;
       color: var(--text);
@@ -108,7 +108,7 @@
     .contacts-list a:hover {
       color: var(--text);
       border-color: var(--accent-light);
-      background: rgba(13, 148, 136, 0.15);
+      background: rgba(57, 255, 20, 0.12);
       transform: translateY(-2px);
       box-shadow: 0 6px 20px var(--accent-glow);
     }
