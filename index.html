@@ -116,6 +116,67 @@
       outline: 2px solid var(--accent-light);
       outline-offset: 2px;
     }
+    .visitor-form {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 42ch;
+    }
+    .visitor-form label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-light);
+      margin-bottom: 0.35rem;
+    }
+    .visitor-form input,
+    .visitor-form textarea {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .visitor-form input::placeholder,
+    .visitor-form textarea::placeholder {
+      color: var(--text-muted);
+      opacity: 0.8;
+    }
+    .visitor-form input:focus,
+    .visitor-form textarea:focus {
+      outline: none;
+      border-color: var(--accent-light);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .visitor-form textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .visitor-form button {
+      padding: 0.5rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--bg);
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .visitor-form button:hover {
+      background: var(--accent-light);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
     footer {
       padding: 2rem 0;
       font-size: 0.8rem;
@@ -138,6 +199,15 @@
       <h1>Илья Антонов</h1>
       <p class="title">Ваша должность или слоган</p>
       <p class="description">Краткое описание вашей деятельности в одном-двух предложениях.</p>
+      <form class="visitor-form" id="visitor-form" aria-label="Оставьте свои данные">
+        <label for="visitor-name">Имя</label>
+        <input type="text" id="visitor-name" name="name" placeholder="Ваше имя" required>
+        <label for="visitor-contact">Контакт (email или Telegram)</label>
+        <input type="text" id="visitor-contact" name="contact" placeholder="email или @username">
+        <label for="visitor-message">Сообщение</label>
+        <textarea id="visitor-message" name="message" placeholder="Кратко о себе или цель обращения..."></textarea>
+        <button type="submit">Отправить</button>
+      </form>
     </header>
     <section class="about" id="about">
       <h2>О себе</h2>
@@ -156,5 +226,16 @@
     </section>
     <footer>© 2025 · Илья Антонов</footer>
   </div>
+  <script>
+    document.getElementById('visitor-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var name = document.getElementById('visitor-name').value;
+      var contact = document.getElementById('visitor-contact').value;
+      var msg = document.getElementById('visitor-message').value;
+      if (!name.trim()) return;
+      var text = 'Имя: ' + name + (contact ? '\nКонтакт: ' + contact : '') + (msg ? '\nСообщение: ' + msg : '');
+      window.location.href = 'mailto:ilyaantonov06022003@gmail.com?subject=Сообщение с визитки&body=' + encodeURIComponent(text);
+    });
+  </script>
 </body>
 </html>
