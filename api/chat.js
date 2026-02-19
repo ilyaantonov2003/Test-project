@@ -1,5 +1,6 @@
 /**
  * Vercel Serverless API — чат с MiniMax по базе знаний (услуги риелтора).
+ * По запросам на объекты — поиск через DuckDuckGo HTML (без API-ключа), результат подставляется в ответ.
  * Переменная окружения: MINIMAX_API_KEY
  */
 
@@ -13,7 +14,60 @@ const KNOWLEDGE_STR = JSON.stringify([
   { q: "Сопровождение сделки с недвижимостью", a: "Сопровождение сделки: проверка юридической чистоты, подготовка документов, переговоры, контроль до регистрации в Росреестре. Цена зависит от типа недвижимости и суммы сделки." }
 ]);
 
-const SYSTEM_PROMPT = `Ты — Личный помощник Илья Антонов. Отвечай вежливо и только на основе данных ниже. Не выдумывай цены или услуги. Если информации нет — скажи "Уточните, пожалуйста, у Ильи напрямую: Telegram @illantonov или форма на сайте." В конце при необходимости предлагай связаться: Telegram https://t.me/illantonov или форма на сайте.
+// Запрос похож на подбор объектов/вариантов недвижимости?
+function isListingRequest(text) {
+  const t = (text || '').toLowerCase();
+  const keywords = ['объект', 'объекты', 'подбор', 'подбери', 'варианты', 'вариант', 'квартир', 'квартира', 'студи', 'недвижимость', 'искать', 'посмотреть', 'покажи', 'есть ли', 'найди', 'подобрать', 'аренд', 'продаж', 'купл', 'комнат', 'дом', 'жиль'];
+  return keywords.some(kw => t.includes(kw));
+}
+
+// Поиск через DuckDuckGo HTML (без API-ключа). База: "аренда" или "продажа" недвижимости москва + запрос пользователя
+async function searchListingsDuckDuckGo(userMessage) {
+  const t = (userMessage || '').toLowerCase();
+  const isSale = /продаж|купл|купить|продать|покупк/.test(t);
+  const base = isSale ? 'продажа недвижимости москва' : 'аренда недвижимости москва';
+  const query = (userMessage && userMessage.trim())
+    ? `${base} ${userMessage.trim()}`
+    : base;
+  try {
+    const res = await fetch('https://html.duckduckgo.com/html/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ q: query }).toString(),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    // Парсим результат: result__a (заголовок + ссылка), result__snippet (описание)
+    const results = [];
+    const linkRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="(?:https?:\/\/duckduckgo\.com\/l\/\?uddg=)?([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+    const snippetRe = /<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+    let m;
+    const links = [];
+    while ((m = linkRe.exec(html)) !== null) {
+      let url = (m[1] || '').trim();
+      if (url.includes('%')) try { url = decodeURIComponent(url); } catch (_) {}
+      if (!url.startsWith('http')) url = 'https://' + url.replace(/^\/\//, '');
+      const title = (m[2] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (title && title.length > 2 && !/duckduckgo|feedback/i.test(title))
+        links.push({ url, title });
+    }
+    const snippets = [];
+    while ((m = snippetRe.exec(html)) !== null) {
+      const snip = (m[1] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (snip && snip.length > 10) snippets.push(snip);
+    }
+    for (let i = 0; i < Math.min(6, links.length); i++) {
+      const link = links[i];
+      const snippet = snippets[i] || '';
+      results.push(`${i + 1}. ${link.title}\n   ${snippet}\n   ${link.url}`);
+    }
+    return results.length ? results.join('\n\n') : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+const SYSTEM_PROMPT_BASE = `Ты — Личный помощник Илья Антонов. Отвечай вежливо. Опирайся на данные ниже и при наличии — на блок "Поиск в интернете" (это примерные варианты для разговора; актуальный подбор и просмотры делает Илья). Не выдумывай цены или адреса. Если информации нет — предложи написать Илье: Telegram @illantonov или форма на сайте. В конце при необходимости: Telegram https://t.me/illantonov или форма на сайте.
 
 Данные об услугах и контактах:
 ${KNOWLEDGE_STR}`;
@@ -27,8 +81,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Сервер: не настроен MINIMAX_API_KEY. Добавьте ключ в Vercel → Project → Settings → Environment Variables.' });
   }
   const { message } = req.body || {};
-  if (!message || typeof message !== 'string') {
+  const userText = message && typeof message === 'string' ? message.trim() : '';
+  if (!userText) {
     return res.status(400).json({ error: 'Нет сообщения' });
+  }
+
+  let systemPrompt = SYSTEM_PROMPT_BASE;
+  if (isListingRequest(userText)) {
+    const searchText = await searchListingsDuckDuckGo(userText);
+    if (searchText) {
+      systemPrompt += `\n\nПоиск в интернете (DuckDuckGo, примерные варианты для ориентира):\n${searchText}\n\nКратко перескажи эти варианты в разговоре как примерный обзор; уточни, что точный подбор и актуальные цены — у Ильи (Telegram, форма на сайте).`;
+    }
   }
 
   try {
@@ -41,8 +104,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'M2-her',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: message.trim() },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userText },
         ],
         max_completion_tokens: 1024,
         temperature: 0.7,
