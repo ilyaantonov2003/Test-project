@@ -51,6 +51,17 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     if (data.base_resp && data.base_resp.status_code !== 0) {
+      const code = data.base_resp.status_code;
+      const msg = (data.base_resp.status_msg || '').toLowerCase();
+      // Недостаточно баланса на MiniMax — показываем вежливый ответ с контактами и услугами
+      if (code === 1008 || msg.includes('insufficient balance') || msg.includes('balance')) {
+        return res.status(200).json({
+          response: 'Сейчас я временно не могу ответить (закончился баланс сервиса). Напишите Илье напрямую — он ответит вам лично.\n\n' +
+            'Telegram: @illantonov — https://t.me/illantonov\n' +
+            'Или оставьте заявку через форму на сайте.\n\n' +
+            'Услуги: консультации по недвижимости, купля-продажа и аренда; цены от 35 000 ₽ за сделку, аренда от 15 000 ₽.'
+        });
+      }
       return res.status(500).json({ error: data.base_resp.status_msg || 'Ошибка MiniMax API' });
     }
     const content = data.choices?.[0]?.message?.content;
@@ -59,6 +70,12 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ response: content });
   } catch (err) {
+    const msg = (err.message || '').toLowerCase();
+    if (msg.includes('insufficient balance') || msg.includes('balance')) {
+      return res.status(200).json({
+        response: 'Сейчас я временно не могу ответить (закончился баланс сервиса). Напишите Илье в Telegram @illantonov (https://t.me/illantonov) или через форму на сайте — он ответит лично. Услуги: недвижимость, купля-продажа и аренда; цены от 35 000 ₽.'
+      });
+    }
     return res.status(500).json({ error: err.message || 'Ошибка запроса к AI' });
   }
 }
