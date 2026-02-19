@@ -1,0 +1,33 @@
+# Секреты и переменные окружения (никогда не коммитить)
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+secrets/
+credentials/
+*.key
+
+# macOS
+.DS_Store
+
+# Зависимости и сборки
+node_modules/
+dist/
+build/
+.next/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Логи и кэш
+*.log
+.cache/
+.parcel-cache/
+
+# IDE (опционально — раскомментируй, если не хочешь пушить настройки)
+# .vscode/
+# .idea/
