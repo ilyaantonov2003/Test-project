@@ -8,13 +8,13 @@
     :root {
       --bg: #0c1214;
       --bg-soft: #131c20;
-      --accent: #39ff14;
-      --accent-light: #7fff00;
-      --accent-gradient: linear-gradient(135deg, #39ff14 0%, #7fff00 35%, #ccff00 70%, #39ff14 100%);
-      --accent-glow: rgba(57, 255, 20, 0.3);
-      --text: #e8f4f2;
-      --text-muted: #a8c4a0;
-      --border: rgba(57, 255, 20, 0.4);
+      --accent: #ef4444;
+      --accent-light: #f87171;
+      --accent-gradient: linear-gradient(135deg, #dc2626 0%, #ef4444 35%, #f97316 70%, #dc2626 100%);
+      --accent-glow: rgba(239, 68, 68, 0.3);
+      --text: #f0e8e8;
+      --text-muted: #c4a8a8;
+      --border: rgba(239, 68, 68, 0.4);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -22,8 +22,8 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(57, 255, 20, 0.12) 0%, rgba(127, 255, 0, 0.06) 40%, transparent 70%),
-        linear-gradient(180deg, #0c1214 0%, #0a0f10 25%, #0f181a 50%, #0c1214 100%);
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(239, 68, 68, 0.12) 0%, rgba(249, 115, 22, 0.06) 40%, transparent 70%),
+        linear-gradient(180deg, #0c1214 0%, #120a0a 25%, #1a0f0f 50%, #0c1214 100%);
       background-attachment: fixed;
       color: var(--text);
       min-height: 100vh;
@@ -125,7 +125,7 @@
       transform: translateY(-2px);
     }
     .contacts-list a:focus-visible {
-      outline: 2px solid var(--accent-light);
+      outline: 2px solid var(--accent);
       outline-offset: 2px;
     }
     .visitor-form {
