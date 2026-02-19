@@ -17,7 +17,7 @@ const KNOWLEDGE_STR = JSON.stringify([
 // Запрос похож на подбор объектов/вариантов недвижимости?
 function isListingRequest(text) {
   const t = (text || '').toLowerCase();
-  const keywords = ['объект', 'объекты', 'подбор', 'подбери', 'варианты', 'вариант', 'квартир', 'квартира', 'студи', 'недвижимость', 'искать', 'посмотреть', 'покажи', 'есть ли', 'найди', 'подобрать', 'аренд', 'продаж', 'купл', 'комнат', 'дом', 'жиль'];
+  const keywords = ['объект', 'объекты', 'подбор', 'подбери', 'варианты', 'вариант', 'квартир', 'квартира', 'студи', 'недвижимость', 'искать', 'посмотреть', 'покажи', 'есть ли', 'найди', 'подобрать', 'аренд', 'продаж', 'купл', 'комнат', 'дом', 'жиль', 'снять', 'сним', 'двушк', 'трёшк', 'однушк', 'хочу снять'];
   return keywords.some(kw => t.includes(kw));
 }
 
@@ -86,10 +86,24 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Нет сообщения' });
   }
 
+  // #region agent log
+  const _log = (location, message, data, hypothesisId) => fetch('http://127.0.0.1:7242/ingest/b00face5-a22a-4864-b1ad-945449e76251', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location, message, data: data || {}, hypothesisId, timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
+
+  const isListing = isListingRequest(userText);
+  // #region agent log
+  _log('api/chat.js:handler', 'isListingRequest result', { userText: userText.slice(0, 80), isListing }, 'H1');
+  // #endregion
+
+  let searchResultsForFallback = null;
   let systemPrompt = SYSTEM_PROMPT_BASE;
-  if (isListingRequest(userText)) {
+  if (isListing) {
     const searchText = await searchListingsDuckDuckGo(userText);
+    // #region agent log
+    _log('api/chat.js:handler', 'DuckDuckGo search result', { searchLen: searchText ? searchText.length : 0, searchNull: searchText === null }, 'H2');
+    // #endregion
     if (searchText) {
+      searchResultsForFallback = searchText;
       systemPrompt += `\n\nПоиск в интернете (DuckDuckGo, примерные варианты для ориентира):\n${searchText}\n\nКратко перескажи эти варианты в разговоре как примерный обзор; уточни, что точный подбор и актуальные цены — у Ильи (Telegram, форма на сайте).`;
     }
   }
@@ -116,14 +130,19 @@ export default async function handler(req, res) {
     if (data.base_resp && data.base_resp.status_code !== 0) {
       const code = data.base_resp.status_code;
       const msg = (data.base_resp.status_msg || '').toLowerCase();
+      // #region agent log
+      _log('api/chat.js:minimax', 'MiniMax error response', { code, msg: (data.base_resp.status_msg || '').slice(0, 80), hasSearchForFallback: !!searchResultsForFallback, searchFallbackLen: searchResultsForFallback ? searchResultsForFallback.length : 0 }, 'H3');
+      // #endregion
       // Недостаточно баланса на MiniMax — показываем вежливый ответ с контактами и услугами
       if (code === 1008 || msg.includes('insufficient balance') || msg.includes('balance')) {
-        return res.status(200).json({
-          response: 'Сейчас я временно не могу ответить (закончился баланс сервиса). Напишите Илье напрямую — он ответит вам лично.\n\n' +
-            'Telegram: @illantonov — https://t.me/illantonov\n' +
-            'Или оставьте заявку через форму на сайте.\n\n' +
-            'Услуги: консультации по недвижимости, купля-продажа и аренда; цены от 35 000 ₽ за сделку, аренда от 15 000 ₽.'
-        });
+        let fallbackResponse = 'Сейчас я временно не могу ответить (закончился баланс сервиса). Напишите Илье напрямую — он ответит вам лично.\n\n' +
+          'Telegram: @illantonov — https://t.me/illantonov\n' +
+          'Или оставьте заявку через форму на сайте.\n\n' +
+          'Услуги: консультации по недвижимости, купля-продажа и аренда; цены от 35 000 ₽ за сделку, аренда от 15 000 ₽.';
+        if (searchResultsForFallback) {
+          fallbackResponse = 'Сейчас я временно не могу ответить (закончился баланс сервиса). По вашему запросу в интернете встречаются примерно такие варианты:\n\n' + searchResultsForFallback + '\n\nДля точного подбора и актуальных цен напишите Илье: Telegram @illantonov — https://t.me/illantonov или форма на сайте.';
+        }
+        return res.status(200).json({ response: fallbackResponse });
       }
       return res.status(500).json({ error: data.base_resp.status_msg || 'Ошибка MiniMax API' });
     }
@@ -135,9 +154,11 @@ export default async function handler(req, res) {
   } catch (err) {
     const msg = (err.message || '').toLowerCase();
     if (msg.includes('insufficient balance') || msg.includes('balance')) {
-      return res.status(200).json({
-        response: 'Сейчас я временно не могу ответить (закончился баланс сервиса). Напишите Илье в Telegram @illantonov (https://t.me/illantonov) или через форму на сайте — он ответит лично. Услуги: недвижимость, купля-продажа и аренда; цены от 35 000 ₽.'
-      });
+      let fallbackResponse = 'Сейчас я временно не могу ответить (закончился баланс сервиса). Напишите Илье в Telegram @illantonov (https://t.me/illantonov) или через форму на сайте — он ответит лично. Услуги: недвижимость, купля-продажа и аренда; цены от 35 000 ₽.';
+      if (searchResultsForFallback) {
+        fallbackResponse = 'Сейчас я временно не могу ответить (закончился баланс сервиса). По вашему запросу в интернете встречаются примерно такие варианты:\n\n' + searchResultsForFallback + '\n\nДля точного подбора напишите Илье: Telegram @illantonov — https://t.me/illantonov или форма на сайте.';
+      }
+      return res.status(200).json({ response: fallbackResponse });
     }
     return res.status(500).json({ error: err.message || 'Ошибка запроса к AI' });
   }
