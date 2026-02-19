@@ -32,14 +32,17 @@ async function searchListingsDuckDuckGo(userMessage) {
   try {
     const res = await fetch('https://html.duckduckgo.com/html/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0',
+      },
       body: new URLSearchParams({ q: query }).toString(),
     });
     if (!res.ok) return null;
     const html = await res.text();
-    // Парсим результат: result__a (заголовок + ссылка), result__snippet (описание)
     const results = [];
-    const linkRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="(?:https?:\/\/duckduckgo\.com\/l\/\?uddg=)?([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+    // result__a или result__url, href может быть через uddg
+    const linkRe = /<a[^>]+class="[^"]*result__(?:a|url)[^"]*"[^>]+href="(?:https?:\/\/duckduckgo\.com\/l\/\?uddg=)?([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
     const snippetRe = /<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
     let m;
     const links = [];
@@ -65,6 +68,14 @@ async function searchListingsDuckDuckGo(userMessage) {
   } catch (_) {
     return null;
   }
+}
+
+// Запасные ссылки, если DuckDuckGo не вернул результаты (403, таймаут, смена вёрстки)
+function getFallbackListingLinks(isSale) {
+  if (isSale) {
+    return '1. Циан — продажа квартир в Москве\n   https://www.cian.ru/kupit-kvartiru/\n\n2. Авито — недвижимость Москва\n   https://www.avito.ru/moskva/kvartiry/prodam\n\n3. Яндекс Недвижимость\n   https://realty.yandex.ru/moskva/kupit/kvartira/';
+  }
+  return '1. Циан — аренда квартир в Москве\n   https://www.cian.ru/snyat-kvartiru/\n\n2. Авито — снять квартиру Москва\n   https://www.avito.ru/moskva/kvartiry/sdam/na_dlitelnyy_srok\n\n3. Яндекс Недвижимость — аренда\n   https://realty.yandex.ru/moskva/snyat/kvartira/';
 }
 
 const SYSTEM_PROMPT_BASE = `Ты — Личный помощник Илья Антонов. Отвечай вежливо. Опирайся на данные ниже и при наличии — на блок "Поиск в интернете" (это примерные варианты для разговора; актуальный подбор и просмотры делает Илья). Не выдумывай цены или адреса. Если информации нет — предложи написать Илье: Telegram @illantonov или форма на сайте. В конце при необходимости: Telegram https://t.me/illantonov или форма на сайте.
@@ -105,6 +116,10 @@ export default async function handler(req, res) {
     if (searchText) {
       searchResultsForFallback = searchText;
       systemPrompt += `\n\nПоиск в интернете (DuckDuckGo, примерные варианты для ориентира):\n${searchText}\n\nКратко перескажи эти варианты в разговоре как примерный обзор; уточни, что точный подбор и актуальные цены — у Ильи (Telegram, форма на сайте).`;
+    } else {
+      const isSale = /продаж|купл|купить|продать|покупк/.test((userText || '').toLowerCase());
+      searchResultsForFallback = getFallbackListingLinks(isSale);
+      systemPrompt += `\n\nПримерные площадки для поиска (если пользователь спрашивает про объекты):\n${searchResultsForFallback}\n\nПодскажи эти ссылки и предложи написать Илье для точного подбора.`;
     }
   }
 
